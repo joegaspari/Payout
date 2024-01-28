@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "mysql"
+  url = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id String @id @default(cuid())
+  firstName String
+  lastName String
+  email String @unique
+  password String // TODO: Encrypt
+
+  manager Manager?
+  client Client?
+
+}
+
+model Manager {
+  id String @id
+
+  clients ManagerClient[]
+  properties Property[]
+
+  user User @relation(fields:[id], references:[id])
+
+  @@index([id])
+}
+
+model Client {
+  id String @id
+  phoneNumber String
+  
+  managers ManagerClient[]
+  properties Property[]
+
+  user User @relation(fields:[id], references:[id])
+
+  @@index([id])
+}
+
+model ManagerClient {
+  manager Manager @relation(fields: [managerId], references:[id])
+  managerId String 
+  client Client @relation(fields:[clientId], references:[id])
+  clientId String
+
+  @@id([managerId, clientId])
+  @@index([managerId])
+  @@index([clientId])
+}
+
+model Property {
+  id String @id @default(cuid())
+  address String
+
+  units Unit[]
+  
+  manager Manager @relation(fields:[managerId], references:[id])
+  managerId String
+  client Client @relation(fields:[clientId], references:[id])
+  clientId String
+
+  @@index([managerId])
+  @@index([clientId])
+  @@fulltext([address])
+}
+
+model Unit {
+  id String @id @default(cuid())
+
+  unitNumber String
+  numberOfBedroom Int
+  numberOfBathrooom Int
+
+  amenities UnitAmenity[]
+  payouts Payout[]
+
+  property Property @relation(fields: [propertyId], references: [id])
+  propertyId String
+
+  @@index([propertyId])
+  @@fulltext([unitNumber])
+}
+
+model UnitAmenity {
+  amenity Amenity
+
+  unit Unit @relation(fields: [unitId], references: [id])
+  unitId String
+
+  @@id([unitId, amenity])
+  @@index([unitId])
+
+}
+
+enum Amenity {
+  LAUNDRY
+  HOT_TUB
+  GYM
+  POOL
+  SAUNA
+  MOVIE_ROOM
+  OUT_DOOR_EQUIP
+  FIRE_PIT
+  YARD
+  FENCED_YARD
+  WIFI
+  FREE_PARKING
+  AC
+  PET_FRIENDLY
+  SELF_CHECKIN
+}
+
+model Payout {
+  id String @id @default(cuid())
+  startDate DateTime
+  endDate DateTime
+
+  reservations Reservation[]
+  expenses Expense[]
+
+  unit Unit @relation(fields: [unitId], references: [id])
+  unitId String
+
+  dateCreated DateTime
+
+  @@index([unitId])
+}
+
+model Reservation {
+  bookingStartDate DateTime // TODO: Add DATE support for PRISMA  
+  numberOfNights Int
+  guestName String
+  stayCost Decimal
+  cleaningFee Decimal
+
+  payout Payout @relation(fields: [payoutId], references: [id])
+  payoutId String
+
+  @@id([bookingStartDate, payoutId])
+  @@index([payoutId])
+  @@fulltext([guestName])
+}
+
+model Expense {
+  id String @id @default(cuid())
+
+  expenseDate DateTime
+  totalCost Decimal
+  description String
+  documentFilePath String?
+
+  type ExpenseType
+  category ExpenseCategory
+  negExpense Boolean
+
+  lineItems LineItem[]
+
+  payout Payout @relation(fields: [payoutId], references: [id])
+  payoutId String
+
+  @@index([payoutId])
+}
+
+enum ExpenseType {
+  INVOICE
+  RECIEPT
+  OTHER
+}
+
+enum ExpenseCategory {
+  CLEANING
+  MISC_EXPENSE
+  YARD_CARE
+  REPAIRS
+  PAY_BACK
+}
+
+model LineItem {
+  id String @id @default(cuid())
+  name String 
+  price Decimal
+
+  expense Expense @relation(fields: [expenseId], references: [id])
+  expenseId String
+
+  @@index([expenseId])
+}
